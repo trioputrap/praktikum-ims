@@ -5,12 +5,12 @@ import config
 
 sync_indexes = []
 
-def save_data(file, data):
+def save_data_file(file, data):
     f = open(file, "w")
     f.write(json.dumps(data))
     f.close()
 
-def read_data(file):
+def read_data_file(file):
     f = open(file, "r")
     try:
         data = json.loads(f.read())
@@ -19,6 +19,12 @@ def read_data(file):
     f.close()
 
     return data
+
+def save_data(tb_name, data, cursor):
+    cursor.execute("TRUNCATE "+tb_name)
+    for row in data:
+        query = query_insert_builder(tb_name, row)
+        cursor.execute(query)
 
 def find_by_id(data, id):
     i = 0

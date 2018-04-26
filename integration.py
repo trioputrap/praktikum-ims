@@ -10,6 +10,7 @@ class Integration:
     tables = []
     db1_connection = None
     db2_connection = None
+    sync_indexes = []
 
     def __init__(self, db1_config, db2_config, tables):
         self.db1_config = db1_config
@@ -17,24 +18,16 @@ class Integration:
         self.tables = tables
         self.db1_connection = helper.connect(db1_config)
         self.db2_connection = helper.connect(db2_config)
-        # create files
+        # create table backups
+
+        cur_1 = helper.get_cursor(self.db1_connection)
+        cur_2 = helper.get_cursor(self.db2_connection)
         for table in self.tables:
-            try:
-                file = open(self.get_history1_name(table), 'r')
-            except IOError:
-                file = open(self.get_history1_name(table), 'w')
-            file.close()
-            try:
-                file = open(self.get_history2_name(table), 'r')
-            except IOError:
-                file = open(self.get_history2_name(table), 'w')
-            file.close()
-
-    def get_history1_name(self, tb_name):
-        return self.db1_config['host'] + "." + self.db1_config['db_name'] + "." + tb_name + ".dat"
-
-    def get_history2_name(self, tb_name):
-        return self.db2_config['host'] + "." + self.db2_config['db_name'] + "." + tb_name + ".dat"
+            query = "CREATE TABLE IF NOT EXISTS `%s_history` SELECT * FROM `%s` WHERE 1=0" % (table,table)
+            cur_1.execute(query)
+            cur_2.execute(query)
+        cur_1.close()
+        cur_2.close()
 
     def sync(self, tb_name):
         while (True):
@@ -45,13 +38,14 @@ class Integration:
             CUR_2 = helper.get_cursor(db_2)
 
             CUR_1.execute("SELECT * FROM " + tb_name)
-
-            results = CUR_1.fetchall()
-            history = helper.read_data(self.get_history1_name(tb_name))
-
+            results = list(CUR_1.fetchall())
+            CUR_1.execute("SELECT * FROM `" + tb_name + "_history`")
+            history = list(CUR_1.fetchall())
+            print(results)
             is_modified = False
+            
             i = 0
-            helper.sync_indexes.clear()
+            self.sync_indexes.clear()
             for row in results:
                 # found
                 index = helper.find_by_id(history, row['id'])
@@ -64,41 +58,49 @@ class Integration:
                         history[index] = row
 
                         query = helper.query_update_builder(tb_name, row)
+                        query_history = helper.query_update_builder(tb_name+"_history", row)
                         helper.print_timestamp("EXECUTE QUERY : " + query)
                         # lakukan query update ke DB_2
+                        CUR_1.execute(query_history);
                         CUR_2.execute(query);
+                        CUR_2.execute(query_history);
                         is_modified = True
 
                 # not found == insert
                 else:
                     query = helper.query_insert_builder(tb_name, row)
+                    query_history = helper.query_insert_builder(tb_name+"_history", row)
                     helper.print_timestamp("EXECUTE QUERY : " + query)
+                    CUR_1.execute(query_history)
                     CUR_2.execute(query)
+                    CUR_2.execute(query_history)
 
                     history.append(row)
                     index = helper.find_by_id(history, row['id'])
                     is_modified = True
 
-                helper.sync_indexes.append(index)
+                self.sync_indexes.append(index)
                 i += 1
 
             # delete
-            if (len(helper.sync_indexes) < len(history)):
+            if (len(self.sync_indexes) < len(history)):
                 i = 0
                 while (i < len(history)):
-                    if (not helper.sync_indexes.__contains__(i)):
+                    if (not self.sync_indexes.__contains__(i)):
                         query = helper.query_delete_builder(tb_name, history[i])
+                        query_history = helper.query_delete_builder(tb_name+"_history", history[i])
                         helper.print_timestamp("EXECUTE QUERY : " + query)
+                        CUR_1.execute(query_history)
                         CUR_2.execute(query)
+                        CUR_2.execute(query_history)
                     i += 1
 
                 is_modified = True
 
             if (is_modified):
-                helper.save_data(self.get_history1_name(tb_name), results)
-                helper.save_data(self.get_history2_name(tb_name), results)
-                helper.print_timestamp(
-                    self.get_history1_name(tb_name) + " & " + self.get_history2_name(tb_name) + " has beed updated!")
+                #helper.save_data(tb_name+"_history", results, CUR_1)
+                #helper.save_data(tb_name+"_history", results, CUR_2)
+                helper.print_timestamp(tb_name + " & " + tb_name + "_history has beed updated!")
             else:
                 helper.print_timestamp("nothing changed")
 
@@ -107,7 +109,7 @@ class Integration:
 
             db_1.commit()
             db_2.commit()
-
+            
             CUR_1.close()
             CUR_2.close()
             time.sleep(config.DELAY)
