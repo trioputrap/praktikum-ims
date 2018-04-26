@@ -1,21 +1,21 @@
 import pymysql
 import datetime
+import json
+import config
 
 sync_indexes = []
 
 def save_data(file, data):
     f = open(file, "w")
-    for row in data:
-        f.write(','.join(map(str, row)))
-        f.write('\n')
+    f.write(json.dumps(data))
     f.close()
 
 def read_data(file):
-    data = []
     f = open(file, "r")
-    for line in f:
-        line = line.replace("\n", "")
-        data.append(tuple(line.split(',')))
+    try:
+        data = json.loads(f.read())
+    except:
+        data = []
     f.close()
 
     return data
@@ -23,28 +23,43 @@ def read_data(file):
 def find_by_id(data, id):
     i = 0
     for row in data:
-        if (row[0] == id):
+        if (row['id'] == id):
             return i
         i+=1
     return -1
 
 def query_update_builder(tb_name, data):
-    sql = "UPDATE " + tb_name
-    sql += " SET `invoice_id` = '" + data[1] + "',"
-    sql += " `total_invoice` = '" + data[2] + "',"
-    sql += " `invoice_status` = '" + data[3] + "',"
-    sql += " `paid_at` = '" + data[4] + "'"
-    sql += " WHERE `id` = '" + data[0] + "'"
+    sql = "UPDATE " + tb_name + " SET"
+    first = True
+    for field, value in data.items():
+        sql+="," if not first else ""
+        sql+="`"+field+"`="
+        sql += "NULL" if value is None else "'" + str(value) + "'"
+        first = False
+    field_id = tuple(data)[config.ID_TB_INDEX]
+    sql += " WHERE `"+ field_id +"` = '" + str(data.get(field_id)) + "'"
     return sql
 
 def query_insert_builder(tb_name, data):
-    sql = "INSERT INTO " + tb_name
-    sql += " VALUES('"+data[0]+"', '"+data[1]+"', '"+data[2]+"', '"+data[3]+"', '"+data[4]+"')"
+    sql = "INSERT INTO " + tb_name +"("
+    first=True
+    for field in data:
+        sql+="," if not first else ""
+        sql+=field
+        first=False
+    sql+=") VALUES("
+    first = True
+    for value in data.values():
+        sql+="," if not first else ""
+        sql += "NULL" if value is None else "'" + str(value) +"'"
+        first=False
+    sql += ")"
     return sql
 
 def query_delete_builder(tb_name, data):
     sql = "DELETE FROM " + tb_name
-    sql += " WHERE `id` = '"+data[0]+"'"
+    field_id = tuple(data)[config.ID_TB_INDEX]
+    sql += " WHERE `"+ field_id +"` = '" + str(data.get(field_id)) + "'"
     return sql
 
 def connect(db_config):
@@ -54,6 +69,9 @@ def connect(db_config):
         db_config['pass'],
         db_config['db_name']
     )
+
+def get_cursor(db):
+    return db.cursor(pymysql.cursors.DictCursor)
 
 def print_timestamp(msg):
     print("\n[" + str(datetime.datetime.now()) + "]")
