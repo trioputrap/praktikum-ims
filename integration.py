@@ -5,114 +5,166 @@ import _thread
 
 
 class Integration:
-    db1_config = []
-    db2_config = []
+    db_master_config = []
+    db_slave_config = []
     tables = []
-    db1_connection = None
-    db2_connection = None
+
+    master_sync = []
+    master_slave_sync = []
+
     sync_indexes = []
+    history_postfix = "_history"
 
-    def __init__(self, db1_config, db2_config, tables):
-        self.db1_config = db1_config
-        self.db2_config = db2_config
-        self.tables = tables
-        self.db1_connection = helper.connect(db1_config)
-        self.db2_connection = helper.connect(db2_config)
-        # create table backups
+    def connect_to_master(self):
+        try:
+            connection = helper.connect(self.db_master_config)
+            #helper.print_timestamp("connection to master : SUCCESS!")
+            return connection
+        except:
+            helper.print_timestamp("connection to master : FAILED!")
+        return None
 
-        cur_1 = helper.get_cursor(self.db1_connection)
-        cur_2 = helper.get_cursor(self.db2_connection)
+    def connect_to_slave(self):
+        try:
+            connection = helper.connect(self.db_slave_config)
+            #helper.print_timestamp("connection to slave : SUCCESS!")
+            return connection
+        except:
+            helper.print_timestamp("connection to slave : FAILED!")
+        return None
+
+    def execute(self, cursor, sql):
+        try:
+            cursor.execute(sql)
+            return True
+        except:
+            helper.print_timestamp("error in execution : " + sql)
+            return False
+
+    def create_table_history(self, db):
+        cursor = helper.get_cursor(db)
         for table in self.tables:
-            query = "CREATE TABLE IF NOT EXISTS `%s_history` SELECT * FROM `%s` WHERE 1=0" % (table,table)
-            cur_1.execute(query)
-            cur_2.execute(query)
-        cur_1.close()
-        cur_2.close()
+            query = "CREATE TABLE IF NOT EXISTS `%s%s` SELECT * FROM `%s` WHERE 1=0" % (
+            table, self.history_postfix, table)
+            try:
+                cursor.execute(query)
+            except:
+                helper.print_timestamp("problem in creating table history")
+        cursor.close()
+
+    def __init__(self, db_master_config, db_slave_config, tables):
+        self.db_master_config = db_master_config
+        self.db_slave_config = db_slave_config
+        self.tables = tables
 
     def sync(self, tb_name):
         while (True):
-            print(tb_name)
-            db_1 = helper.connect(self.db1_config)
-            db_2 = helper.connect(self.db2_config)
-            CUR_1 = helper.get_cursor(db_1)
-            CUR_2 = helper.get_cursor(db_2)
+            db_master = self.connect_to_master()
+            self.master_sync.clear()
+            self.master_slave_sync.clear()
 
-            CUR_1.execute("SELECT * FROM " + tb_name)
-            results = list(CUR_1.fetchall())
-            CUR_1.execute("SELECT * FROM `" + tb_name + "_history`")
-            history = list(CUR_1.fetchall())
-            print(results)
-            is_modified = False
-            
-            i = 0
-            self.sync_indexes.clear()
-            for row in results:
-                # found
-                index = helper.find_by_id(history, row['id'])
-                if (index != -1):
-                    # modified
-                    if (row != history[index]):
-                        helper.print_timestamp("row " + str(i) + " : modified")
-                        print("row main\t: " + str(row))
-                        print("row history\t: " + str(history[index]))
-                        history[index] = row
+            if(db_master is None):
+                helper.print_timestamp("retrying connect to master...")
+            else :
+                self.create_table_history(db_master)
+                cur_master = helper.get_cursor(db_master)
 
-                        query = helper.query_update_builder(tb_name, row)
-                        query_history = helper.query_update_builder(tb_name+"_history", row)
+                #connect if
+                db_slave = self.connect_to_slave()
+                try:
+                    cur_slave = helper.get_cursor(db_slave)
+                    self.create_table_history(db_slave)
+                except:
+                    helper.print_timestamp("error in slave connection")
+
+                cur_master.execute("SELECT * FROM `%s`" % tb_name)
+                results = list(cur_master.fetchall())
+
+                cur_master.execute("SELECT * FROM `%s%s`" % (tb_name, self.history_postfix))
+                history = list(cur_master.fetchall())
+
+                is_modified = False
+                i = 0
+                self.sync_indexes.clear()
+                for row in results:
+                    # found
+                    index = helper.find_by_id(history, row['id'])
+                    if (index != -1):
+                        # modified
+                        if (row != history[index]):
+                            helper.print_timestamp("row " + str(i) + " : modified")
+                            print("row main\t: " + str(row))
+                            print("row history\t: " + str(history[index]))
+                            history[index] = row
+
+                            query = helper.query_update_builder(tb_name, row)
+                            query_history = helper.query_update_builder(tb_name+"_history", row)
+                            helper.print_timestamp("EXECUTE QUERY : " + query)
+
+                            # lakukan query update ke db_slave
+                            self.execute(cur_master, query_history)
+
+                            if(self.execute(cur_slave, query)):
+                                if(self.execute(cur_slave, query_history)): self.master_slave_sync.append(row)
+                            else:
+                                self.master_sync.append(row)
+
+                            is_modified = True
+
+                    # not found == insert
+                    else:
+                        query = helper.query_insert_builder(tb_name, row)
+                        query_history = helper.query_insert_builder(tb_name+"_history", row)
                         helper.print_timestamp("EXECUTE QUERY : " + query)
-                        # lakukan query update ke DB_2
-                        CUR_1.execute(query_history);
-                        CUR_2.execute(query);
-                        CUR_2.execute(query_history);
+
+                        self.execute(cur_master, query_history)
+
+                        if (self.execute(cur_slave, query)):
+                            if (self.execute(cur_slave, query_history)): self.master_slave_sync.append(row)
+                        else:
+                            self.master_sync.append(row)
+
+                        history.append(row)
+                        index = helper.find_by_id(history, row['id'])
                         is_modified = True
 
-                # not found == insert
-                else:
-                    query = helper.query_insert_builder(tb_name, row)
-                    query_history = helper.query_insert_builder(tb_name+"_history", row)
-                    helper.print_timestamp("EXECUTE QUERY : " + query)
-                    CUR_1.execute(query_history)
-                    CUR_2.execute(query)
-                    CUR_2.execute(query_history)
-
-                    history.append(row)
-                    index = helper.find_by_id(history, row['id'])
-                    is_modified = True
-
-                self.sync_indexes.append(index)
-                i += 1
-
-            # delete
-            if (len(self.sync_indexes) < len(history)):
-                i = 0
-                while (i < len(history)):
-                    if (not self.sync_indexes.__contains__(i)):
-                        query = helper.query_delete_builder(tb_name, history[i])
-                        query_history = helper.query_delete_builder(tb_name+"_history", history[i])
-                        helper.print_timestamp("EXECUTE QUERY : " + query)
-                        CUR_1.execute(query_history)
-                        CUR_2.execute(query)
-                        CUR_2.execute(query_history)
+                    self.sync_indexes.append(index)
                     i += 1
 
-                is_modified = True
+                # delete
+                if (len(self.sync_indexes) < len(history)):
+                    i = 0
+                    while (i < len(history)):
+                        if (not self.sync_indexes.__contains__(i)):
+                            query = helper.query_delete_builder(tb_name, history[i])
+                            query_history = helper.query_delete_builder(tb_name+"_history", history[i])
+                            helper.print_timestamp("EXECUTE QUERY : " + query)
 
-            if (is_modified):
-                #helper.save_data(tb_name+"_history", results, CUR_1)
-                #helper.save_data(tb_name+"_history", results, CUR_2)
-                helper.print_timestamp(tb_name + " & " + tb_name + "_history has beed updated!")
-            else:
-                helper.print_timestamp("nothing changed")
+                            self.execute(cur_master, query_history)
 
-            # commit and close cursor
-            is_modified = False
+                            if(self.execute(cur_slave, query)):
+                                if(self.execute(cur_slave, query_history)): self.master_slave_sync.append(history[i])
+                            else:
+                                self.master_sync.append(history[i])
 
-            db_1.commit()
-            db_2.commit()
-            
-            CUR_1.close()
-            CUR_2.close()
-            time.sleep(config.DELAY)
+                        i += 1
+
+                    is_modified = True
+
+                if (is_modified):
+                    helper.print_timestamp("synchronized : \n"+str(len(self.master_sync))+" local \n"+str(len(self.master_slave_sync))+" master-slave")
+                else:
+                    helper.print_timestamp("nothing changed")
+
+                # commit and close cursor
+
+                db_master.commit()
+                db_slave.commit()
+
+                cur_master.close()
+                cur_slave.close()
+
+            time.sleep(1)
 
     def run(self):
         for table in self.tables:
