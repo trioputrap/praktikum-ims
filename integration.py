@@ -71,6 +71,7 @@ class Integration:
 
                 #connect if
                 db_slave = self.connect_to_slave()
+                cur_slave = None
                 try:
                     cur_slave = helper.get_cursor(db_slave)
                     self.create_table_history(db_slave)
@@ -154,15 +155,21 @@ class Integration:
                 if (is_modified):
                     helper.print_timestamp("synchronized : \n"+str(len(self.master_sync))+" local \n"+str(len(self.master_slave_sync))+" master-slave")
                 else:
-                    helper.print_timestamp("nothing changed")
+                    helper.print_timestamp(tb_name + " : nothing changed")
 
                 # commit and close cursor
 
-                db_master.commit()
-                db_slave.commit()
+                if (not db_master is None):
+                    db_master.commit()
 
-                cur_master.close()
-                cur_slave.close()
+                if (not db_slave is None):
+                    db_slave.commit()
+
+                if (not cur_master is None):
+                    cur_master.close()
+
+                if (not cur_slave is None):
+                    cur_slave.close()
 
             time.sleep(1)
 
