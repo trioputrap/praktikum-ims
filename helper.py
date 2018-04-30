@@ -3,20 +3,40 @@ import datetime
 import json
 import config
 
-sync_indexes = []
+dml_mode = {"INSERT" : 1, "UPDATE" : 2, "DELETE" : 3}
 
-def save_data_file(file, data):
-    f = open(file, "w")
-    f.write(json.dumps(data))
-    f.close()
+def str_dtime(str):
+    return datetime.datetime.strptime(str, "%Y-%m-%d %H:%M:%S.%f")
 
-def read_data_file(file):
-    f = open(file, "r")
+def get_row_json(data, mode, id=None):
+    row = {
+        "datetime" : str(datetime.datetime.now()),
+        "dml_mode" : dml_mode[mode],
+        "data": data
+    }
+    if(not id is None ) : row['id'] = id
+    return row
+
+def save_json(file, row):
     try:
+        f = open(file, "r")
         data = json.loads(f.read())
+        f.close()
     except:
         data = []
+    print(data)
+    data.append(row)
+    f = open(file, "w")
+    f.write(json.dumps(data, indent=4))
     f.close()
+
+def read_json(file):
+    try:
+        f = open(file, "r")
+        data = json.loads(f.read())
+        f.close()
+    except:
+        data = []
 
     return data
 
@@ -34,16 +54,15 @@ def find_by_id(data, id):
         i+=1
     return -1
 
-def query_update_builder(tb_name, data):
-    sql = "UPDATE " + tb_name + " SET"
+def query_update_builder(table, data, id):
+    sql = "UPDATE " + table['name'] + " SET "
     first = True
     for field, value in data.items():
         sql+="," if not first else ""
         sql+="`"+field+"`="
         sql += "NULL" if value is None else "'" + str(value) + "'"
         first = False
-    field_id = tuple(data)[config.ID_TB_INDEX]
-    sql += " WHERE `"+ field_id +"` = '" + str(data.get(field_id)) + "'"
+    sql += " WHERE `"+ table['id'] +"` = '" + str(id) + "'"
     return sql
 
 def query_insert_builder(tb_name, data):
@@ -62,10 +81,9 @@ def query_insert_builder(tb_name, data):
     sql += ")"
     return sql
 
-def query_delete_builder(tb_name, data):
-    sql = "DELETE FROM " + tb_name
-    field_id = tuple(data)[config.ID_TB_INDEX]
-    sql += " WHERE `"+ field_id +"` = '" + str(data.get(field_id)) + "'"
+def query_delete_builder(table, id):
+    sql = "DELETE FROM " + table['name']
+    sql += " WHERE `"+ table['id'] +"` = '" + str(id) + "'"
     return sql
 
 def connect(db_config):
@@ -82,3 +100,11 @@ def get_cursor(db):
 def print_timestamp(msg):
     print("\n[" + str(datetime.datetime.now()) + "]")
     print("> " + msg)
+
+def get_modified_col(row_main, row_history):
+    row_update = {}
+    for col, val in row_history.items():
+        if (row_main[col] != val):
+            row_update[col] = row_main[col]
+
+    return row_update
