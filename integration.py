@@ -199,27 +199,27 @@ class Integration:
                     i += 1
 
                 # delete
-                if (len(self.sync_indexes) < len(history)):
-                    i = 0
-                    while (i < len(history)):
-                        if (not self.sync_indexes.__contains__(i)):
-                            query = helper.query_delete_builder(table, history[i][table['id']])
-                            query_history = helper.query_delete_builder(table_history, history[i][table['id']])
-                            helper.print_timestamp("EXECUTE QUERY : " + query)
+                #if (len(self.sync_indexes) < len(history)):
+                i = 0
+                while (i < len(history)):
+                    if (not self.sync_indexes.__contains__(i)):
+                        query = helper.query_delete_builder(table, history[i][table['id']])
+                        query_history = helper.query_delete_builder(table_history, history[i][table['id']])
+                        helper.print_timestamp("EXECUTE QUERY : " + query)
 
-                            if(self.execute(cur_master, query_history)):
-                                if(self.execute(cur_slave, query)):
-                                    if(self.execute(cur_slave, query_history)): self.master_slave_sync.append(history[i])
-                                else:
-                                    self.master_sync.append(history[i])
-                                    row_backup = helper.get_row_json(history[i], "DELETE")
-                                    print(row_backup)
-                                    print(self.get_backup_name(table['name']))
-                                    helper.save_json(self.get_backup_name(table['name']), row_backup)
+                        if(self.execute(cur_master, query_history)):
+                            if(self.execute(cur_slave, query)):
+                                if(self.execute(cur_slave, query_history)): self.master_slave_sync.append(history[i])
+                            else:
+                                self.master_sync.append(history[i])
+                                row_backup = helper.get_row_json(history[i], "DELETE")
+                                print(row_backup)
+                                print(self.get_backup_name(table['name']))
+                                helper.save_json(self.get_backup_name(table['name']), row_backup)
 
-                        i += 1
+                        is_modified = True
+                    i += 1
 
-                    is_modified = True
 
                 if (is_modified):
                     helper.print_timestamp("synchronized : \n"+str(len(self.master_sync))+" local \n"+str(len(self.master_slave_sync))+" master-slave")
