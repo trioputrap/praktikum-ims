@@ -138,22 +138,18 @@ def backup(file):
                 sys.exit()
 
 # Download contents of LOCALFILE to Dropbox
-def download(file):
+def download():
     dbx = dropbox.Dropbox(config.TOKEN)
-    with open(file, 'wb') as f:
-        # We use WriteMode=overwrite to make sure that the settings in the file
-        # are changed on upload
-        print("Downloading " + file +  "...")
-        try:
-            #dbx.files_upload(f.read(), config.BACKUPPATH, mode=WriteMode('overwrite'))
-            dbx.files_download_to_file(file,"/" + file)
-        except ApiError as err:
-            # This checks for the specific error where a user doesn't have enough Dropbox space quota to upload this file
-            if  err.error.is_path() and err.error.get_path().is_not_found():
-                sys.exit("ERROR: Cannot download; no files in path.")
-            elif err.user_message_text:
-                print(err.user_message_text)
-                sys.exit()
-            else:
-                print(err)
-                sys.exit()
+    try:
+        #dbx.files_upload(f.read(), config.BACKUPPATH, mode=WriteMode('overwrite'))
+        dbx.files_download_to_file(config.FILE, config.BACKUPPATH)
+    except ApiError as err:
+        # This checks for the specific error where a user doesn't have enough Dropbox space quota to upload this file
+        if  err.error.is_path() and err.error.get_path().is_not_found():
+            sys.exit("ERROR: Cannot download; no files in path.")
+        elif err.user_message_text:
+            print(err.user_message_text)
+            sys.exit()
+        else:
+            print(err)
+            sys.exit()

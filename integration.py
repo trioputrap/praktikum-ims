@@ -57,6 +57,9 @@ class Integration:
     def get_backup_name(self, table_name):
         return self.db_master_config['host'] + "_" + table_name + ".json"
 
+    def get_backup_slave(self, table_name):
+        return self.db_slave_config['host'] + "_" + table_name + ".json"
+
     def read_backup(self, table, db):
 
         table_history = {"name": table['name']+self.history_postfix, "id": table['id']}
@@ -113,6 +116,7 @@ class Integration:
         self.db_master_config = db_master_config
         self.db_slave_config = db_slave_config
         self.tables = tables
+
 
 
     def sync(self, table):
@@ -251,9 +255,8 @@ class Integration:
                 if (not cur_slave is None):
                     cur_slave.close()
 
-                print("Try Download...")
-                helper.download(self.get_backup_name(table['name']))
-                print("Done")
+                helper.download()
+                print('done')
                 self.read_backup(table, db_master)
             time.sleep(1)
 

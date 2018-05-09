@@ -3,7 +3,8 @@ ID_TB_INDEX = 0
 
 # Access token
 TOKEN = 'TuQ-cmEG_jAAAAAAAAAADBbX1h07glL4tdq9P5d0ZOC2ZjvH2l8Oq1IjVnbnG0SW'
-
+BACKUPPATH='/10.10.23.203_invoices.json'
+FILE='10.10.23.203_invoices.json'
 
 #database config
 DB_1 = {
