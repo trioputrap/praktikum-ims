@@ -255,7 +255,7 @@ class Integration:
                 if (not cur_slave is None):
                     cur_slave.close()
 
-                helper.download()
+                helper.download(self.get_backup_slave(table['name']))
                 print('done')
                 self.read_backup(table, db_master)
             time.sleep(1)

@@ -138,18 +138,17 @@ def backup(file):
                 sys.exit()
 
 # Download contents of LOCALFILE to Dropbox
-def download():
+def download(file):
     dbx = dropbox.Dropbox(config.TOKEN)
     try:
+        print("Try Download " + file + "...")
         #dbx.files_upload(f.read(), config.BACKUPPATH, mode=WriteMode('overwrite'))
-        dbx.files_download_to_file(config.FILE, config.BACKUPPATH)
+        dbx.files_download_to_file(file, '/' +file)
     except ApiError as err:
         # This checks for the specific error where a user doesn't have enough Dropbox space quota to upload this file
         if  err.error.is_path() and err.error.get_path().is_not_found():
-            sys.exit("ERROR: Cannot download; no files in path.")
+            print("ERROR: Cannot download; no files in path.")
         elif err.user_message_text:
             print(err.user_message_text)
-            sys.exit()
         else:
             print(err)
-            sys.exit()
