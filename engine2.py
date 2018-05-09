@@ -1,7 +1,11 @@
 from integration import Integration
 import config
 
-integration = Integration(config.DB_2, config.DB_1,["invoice_sync","test"])
+tables = (
+    {"name": "invoices", "id": "id"},
+)
+
+integration = Integration(config.DB_5, config.DB_4, tables)
 integration.run()
 while 1:
    pass

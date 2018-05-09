@@ -3,14 +3,14 @@ ID_TB_INDEX = 0
 
 #database config
 DB_1 = {
-    'host': '192.168.1.98',
+    'host': '10.10.23.203',
     'user': 'trio',
     'pass': 'trio',
     'db_name': 'ims_1'
 }
 
 DB_2 = {
-    'host': '192.168.1.84',
+    'host': '10.10.23.39',
     'user': 'pandika',
     'pass': 'pandika',
     'db_name': 'ims_1'
@@ -22,4 +22,20 @@ DB_3 = {
     'user': 'pandika',
     'pass': 'pandika',
     'db_name': 'ims_1'
+}
+
+
+DB_4 = {
+    'host': 'localhost',
+    'user': 'root',
+    'pass': '',
+    'db_name': 'ims_1'
+}
+
+
+DB_5 = {
+    'host': '127.0.0.1',
+    'user': 'root',
+    'pass': '',
+    'db_name': 'ims_2'
 }

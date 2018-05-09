@@ -94,7 +94,6 @@ class Integration:
                     if(self.execute(cursor, query)):
                         if(self.execute(cursor, query_history)):
                             print("backup sukses")
-                            db
 
             if(is_backup):
                 last_backup[table['name']] = last_row['datetime']
@@ -241,7 +240,7 @@ class Integration:
                     cur_slave.close()
 
                 self.read_backup(table, db_master)
-            time.sleep(5)
+            time.sleep(1)
 
     def run(self):
         for table in self.tables:
