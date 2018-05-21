@@ -7,21 +7,20 @@ BACKUPPATH='/10.10.23.203_invoices.json'
 FILE='10.10.23.203_invoices.json'
 
 #database config
+
 DB_1 = {
-    'host': '192.168.43.74',
-    'user': 'pandika',
-    'pass': 'pandika',
-    'db_name': 'ims_1'
-}
-
-
-DB_2 = {
-    'host': '192.168.43.215',
+    'host': '192.168.1.91',
     'user': 'trio',
     'pass': 'trio',
     'db_name': 'ims_1'
 }
 
+DB_2 = {
+    'host': '192.168.43.75',
+    'user': 'pandika',
+    'pass': 'pandika',
+    'db_name': 'ims_1'
+}
 
 DB_3 = {
     #IP menyesuaikan

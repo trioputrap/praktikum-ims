@@ -110,14 +110,10 @@ class Integration:
         db.commit()
         cursor.close()
 
-
-
     def __init__(self, db_master_config, db_slave_config, tables):
         self.db_master_config = db_master_config
         self.db_slave_config = db_slave_config
         self.tables = tables
-
-
 
     def sync(self, table):
         table_history = {"name": table['name']+self.history_postfix, "id": table['id']}

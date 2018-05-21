@@ -15,6 +15,7 @@ def str_dtime(str):
     return datetime.datetime.strptime(str, "%Y-%m-%d %H:%M:%S.%f")
 
 def get_row_json(data, mode, id=None):
+    data['paid_at'] = str(data['paid_at'])
     row = {
         "datetime" : str(datetime.datetime.now()),
         "dml_mode" : dml_mode[mode],
@@ -118,12 +119,12 @@ def get_modified_col(row_main, row_history):
 
 #============================================= Uploads contents of LOCALFILE to Dropbox =============================================
 def backup(file):
-    dbx = dropbox.Dropbox(config.TOKEN)
     with open(file, 'rb') as f:
         # We use WriteMode=overwrite to make sure that the settings in the file
         # are changed on upload
         print("Uploading " + file + " to Dropbox as " + "/" + file + "...")
         try:
+            dbx = dropbox.Dropbox(config.TOKEN)
             dbx.files_upload(f.read(), "/" + file, mode=WriteMode('overwrite'))
         except ApiError as err:
             # This checks for the specific error where a user doesn't have enough Dropbox space quota to upload this file
@@ -139,8 +140,8 @@ def backup(file):
 
 # Download contents of LOCALFILE to Dropbox
 def download(file):
-    dbx = dropbox.Dropbox(config.TOKEN)
     try:
+        dbx = dropbox.Dropbox(config.TOKEN)
         print("Try Download " + file + "...")
         #dbx.files_upload(f.read(), config.BACKUPPATH, mode=WriteMode('overwrite'))
         dbx.files_download_to_file(file, '/' +file)
