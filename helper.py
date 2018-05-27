@@ -5,8 +5,9 @@ import config
 
 dml_mode = {"INSERT" : 1, "UPDATE" : 2, "DELETE" : 3}
 
-def str_dtime(str):
-    return datetime.datetime.strptime(str, "%Y-%m-%d %H:%M:%S.%f")
+def str_dtime(o):
+    if isinstance(o, datetime.datetime):
+        return o.__str__()
 
 def get_row_json(data, mode, id=None):
     row = {
@@ -27,7 +28,7 @@ def save_json(file, row):
     print(data)
     data.append(row)
     f = open(file, "w")
-    f.write(json.dumps(data, indent=4))
+    f.write(json.dumps(data, default=str_dtime, indent=4))
     f.close()
 
 def read_json(file):
