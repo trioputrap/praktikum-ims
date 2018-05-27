@@ -1,50 +1,5 @@
 import pymysql
 import datetime
-import json
-import config
-
-dml_mode = {"INSERT" : 1, "UPDATE" : 2, "DELETE" : 3}
-
-def str_dtime(str):
-    return datetime.datetime.strptime(str, "%Y-%m-%d %H:%M:%S.%f")
-
-def get_row_json(data, mode, id=None):
-    row = {
-        "datetime" : str(datetime.datetime.now()),
-        "dml_mode" : dml_mode[mode],
-        "data": data
-    }
-    if(not id is None ) : row['id'] = id
-    return row
-
-def save_json(file, row):
-    try:
-        f = open(file, "r")
-        data = json.loads(f.read())
-        f.close()
-    except:
-        data = []
-    print(data)
-    data.append(row)
-    f = open(file, "w")
-    f.write(json.dumps(data, indent=4))
-    f.close()
-
-def read_json(file):
-    try:
-        f = open(file, "r")
-        data = json.loads(f.read())
-        f.close()
-    except:
-        data = []
-
-    return data
-
-def save_data(tb_name, data, cursor):
-    cursor.execute("TRUNCATE "+tb_name)
-    for row in data:
-        query = query_insert_builder(tb_name, row)
-        cursor.execute(query)
 
 def find_by_id(data, id):
     i = 0

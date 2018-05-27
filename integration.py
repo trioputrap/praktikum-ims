@@ -17,6 +17,11 @@ class Integration:
     sync_indexes = []
     history_postfix = "_history"
 
+    def __init__(self, db_master_config, db_slave_config, tables):
+        self.db_master_config = db_master_config
+        self.db_slave_config = db_slave_config
+        self.tables = tables
+
     def connect_to_master(self):
         try:
             connection = helper.connect(self.db_master_config)
@@ -53,66 +58,6 @@ class Integration:
             except:
                 helper.print_timestamp("problem in creating table history")
         cursor.close()
-
-    def get_backup_name(self, table_name):
-        return self.db_master_config['host'] + "_" + table_name + ".json"
-
-    def read_backup(self, table, db):
-
-        table_history = {"name": table['name']+self.history_postfix, "id": table['id']}
-        cursor = helper.get_cursor(db)
-
-        file_backup = self.db_master_config['host'] + "_" + self.db_master_config['db_name'] + "_backup.json"
-        last_backup = dict(helper.read_json(file_backup))
-
-        last_backup_table = '' if len(last_backup) == 0 else last_backup[table['name']]
-
-        file = self.db_slave_config['host'] + "_" + table['name'] + ".json"
-        backup_data = helper.read_json(file)
-
-        is_backup = False
-        if (len(backup_data)>0):
-            last_row = {}
-            for row in backup_data:
-                if (row['datetime']>last_backup_table):
-                    is_backup = True
-                    if(row['dml_mode']==1):
-                        query = helper.query_insert_builder(table['name'], row['data'])
-                        query_history = helper.query_insert_builder(table_history['name'], row['data'])
-                    elif (row['dml_mode']==2):
-                        query = helper.query_update_builder(table, row['data'], row['id'])
-                        query_history = helper.query_update_builder(table_history, row['data'], row['id'])
-                    else:
-                        query = helper.query_delete_builder(table, row['data']['id'])
-                        query_history = helper.query_delete_builder(table_history, row['data']['id'])
-
-                    last_row = row
-                    print("last")
-                    print(last_row)
-                    print(query)
-                    print(self.db_master_config)
-                    if(self.execute(cursor, query)):
-                        if(self.execute(cursor, query_history)):
-                            print("backup sukses")
-
-            if(is_backup):
-                last_backup[table['name']] = last_row['datetime']
-                try:
-                    f = open(self.db_master_config['host'] + "_" + self.db_master_config['db_name'] + "_backup.json", "w")
-                    data = json.dumps(last_backup)
-                    f.write(data)
-                    f.close()
-                except:
-                    print("fail file")
-        db.commit()
-        cursor.close()
-
-
-
-    def __init__(self, db_master_config, db_slave_config, tables):
-        self.db_master_config = db_master_config
-        self.db_slave_config = db_slave_config
-        self.tables = tables
 
     def sync(self, table):
         table_history = {"name": table['name']+self.history_postfix, "id": table['id']}
@@ -169,9 +114,6 @@ class Integration:
                                     if(self.execute(cur_slave, query_history)): self.master_slave_sync.append(row)
                                 else:
                                     self.master_sync.append(row)
-                                    row_backup = helper.get_row_json(row_update, "UPDATE", row[table['id']])
-                                    print(row_backup)
-                                    helper.save_json(self.get_backup_name(table['name']), row_backup)
 
                             is_modified = True
 
@@ -186,9 +128,6 @@ class Integration:
                                 if (self.execute(cur_slave, query_history)): self.master_slave_sync.append(row)
                             else:
                                 self.master_sync.append(row)
-                                row_backup = helper.get_row_json(row, "INSERT")
-                                print(row_backup)
-                                helper.save_json(self.get_backup_name(table['name']), row_backup)
 
                         history.append(row)
                         index = helper.find_by_id(history, row['id'])
@@ -198,7 +137,6 @@ class Integration:
                     i += 1
 
                 # delete
-                #if (len(self.sync_indexes) < len(history)):
                 i = 0
                 while (i < len(history)):
                     if (not self.sync_indexes.__contains__(i)):
@@ -211,10 +149,6 @@ class Integration:
                                 if(self.execute(cur_slave, query_history)): self.master_slave_sync.append(history[i])
                             else:
                                 self.master_sync.append(history[i])
-                                row_backup = helper.get_row_json(history[i], "DELETE")
-                                print(row_backup)
-                                print(self.get_backup_name(table['name']))
-                                helper.save_json(self.get_backup_name(table['name']), row_backup)
 
                         is_modified = True
                     i += 1
@@ -238,8 +172,6 @@ class Integration:
 
                 if (not cur_slave is None):
                     cur_slave.close()
-
-                self.read_backup(table, db_master)
             time.sleep(1)
 
     def run(self):
