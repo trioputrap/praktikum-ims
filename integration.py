@@ -240,7 +240,7 @@ class Integration:
                     cur_slave.close()
 
                 self.read_backup(table, db_master)
-            time.sleep(1)
+            time.sleep(config.DELAY)
 
     def run(self):
         for table in self.tables:
